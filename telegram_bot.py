@@ -5,8 +5,11 @@ from telethon import TelegramClient
 from config import Config
 
 logger = logging.getLogger("bot")
-logger.setLevel("DEBUG")
+# logger.setLevel("DEBUG")
+logging.basicConfig(level=logging.DEBUG,
+                    force = True)
 
+MAX_MSG_LEN=4096
 
 class TelegramBotBuilder:
     def __init__(self, token):
@@ -18,7 +21,7 @@ class TelegramBotBuilder:
         return self
 
     def with_core_api(self, api_id, api_hash):
-        client = TelegramClient('anon', api_id, api_hash)
+        client = TelegramClient('test', api_id, api_hash)
         self.bot.core_api_client = client
         return self
 
@@ -34,7 +37,7 @@ class TelegramBot:
 
     def set_webhook(self, host):
         try:
-            host = host.replace("http", "https")
+            # host = host.replace("http", "https")
             logger.info(f"Setting webhook for url: {host}")
             set_webhook_url = f"{self.bot_api_url}/setWebhook?url={host}"
 
@@ -48,23 +51,39 @@ class TelegramBot:
         try:
             logger.info(f"Sending message to chat #{chat_id}")
             send_message_url = f"{self.bot_api_url}/sendMessage"
-            response = requests.post(send_message_url, json={"chat_id": chat_id,
-                                                              "text": message})
+            while message:
+                chunk = message[:MAX_MSG_LEN]
+                message = message[MAX_MSG_LEN:]
+                response = requests.post(send_message_url, json={"chat_id": chat_id,
+                                                                "text": chunk})
             response.raise_for_status()
         except Exception as e:
             logger.error(f"Failed to send message: {e}")
             raise
 
-    async def get_chat_history(self, chat_id, limit=30):
+    async def get_chat_history(self, chat_id, start_msg_id=0, topic_id=0, limit=30):
         try:
             if not self.core_api_client:
                 return []
             logger.info(f"Getting conversation history for chat #{chat_id}")
-            history = await self.core_api_client.get_messages(chat_id, limit)
-            result = [f"{message.sender.first_name} {message.sender.last_name}: {message.message} \n"
-                      for message in history if not message.action]
-            result.reverse()
-            return '\n'.join(result)
+            chat_id = 't.me/' + chat_id
+            # entity = await self.core_api_client.get_entity(chat_id)
+            kwargs = {}
+            kwargs['entity'] = chat_id
+            kwargs['limit'] = limit
+            kwargs['reverse'] = True
+            if start_msg_id != 0:
+                kwargs['min_id'] = int(start_msg_id) - 1
+            if topic_id != 0:
+                kwargs['reply_to'] = int(topic_id)
+            history = await self.core_api_client.get_messages(**kwargs)
+            result = []
+            for message in history:
+                if message.message:
+                    # No field for admin of channel
+                    sender = message.sender.first_name if message.sender else "admin"
+                    result.append(f"{message.date} {sender}:\n {message.message}")
+            return result
         except Exception as e:
             logger.error(f"Failed to get chat history: {e}")
             raise
