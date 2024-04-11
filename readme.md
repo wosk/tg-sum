@@ -6,7 +6,7 @@ To learn more about developing web applications with Flask, check Hyperskill’s
 ### Getting started
 * install requirements
 ```
-$ pip install -r requirements.txt
+$ python -m pip install -r requirements.txt
 ```
 
 * export environment variables
@@ -17,6 +17,8 @@ $ export TELEGRAM_CORE_API_ID=YouRTeleGRamApiID
 $ export TELEGRAM_CORE_API_HASH=YouRTeleGRamApiHaSH
 ```
 optional: set application port (as `TELEGRAM_BOT_PORT`)
+
+* Install ngrok token from https://dashboard.ngrok.com/get-started/your-authtoken
 
 * run main.py
 ```

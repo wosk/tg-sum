@@ -61,12 +61,27 @@ class TelegramBot:
             logger.error(f"Failed to send message: {e}")
             raise
 
+    def extract_name(self, msg):
+        # No first_name field for admin of channel
+        options = ["username"]
+        options += ["title"]
+        options += ["first_name"]
+        sender = None
+        i = 0
+        while (not sender):
+            opt = options[i]
+            i += 1
+            try:
+                return getattr(msg.sender, opt)
+            except AttributeError:
+                continue
+        return "admin"
+
     async def get_chat_history(self, chat_id, start_msg_id=0, topic_id=0, limit=30):
         try:
             if not self.core_api_client:
                 return []
-            logger.info(f"Getting conversation history for chat #{chat_id}")
-            chat_id = 't.me/' + chat_id
+            logger.info(f"Getting conversation history for chat: {chat_id}")
             # entity = await self.core_api_client.get_entity(chat_id)
             kwargs = {}
             kwargs['entity'] = chat_id
@@ -80,8 +95,7 @@ class TelegramBot:
             result = []
             for message in history:
                 if message.message:
-                    # No field for admin of channel
-                    sender = message.sender.first_name if message.sender else "admin"
+                    sender = self.extract_name(message)
                     result.append(f"{message.date} {sender}:\n {message.message}")
             return result
         except Exception as e:
